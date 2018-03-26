@@ -9,6 +9,7 @@ Author: Ross C. Brodie, Geoscience Australia.
 #ifndef _matrix_ops_H
 #define _matrix_ops_H
 #include <vector>
+#include <cstddef>
 
 #define TNT_SUBSCRIPT_TYPE size_t
 #include "tnt_subscript.h"
@@ -34,6 +35,8 @@ typedef TNT::Vector<double> VectorDouble;
 typedef TNT::Matrix<double> MatrixDouble;
 ///////////////////////////////////////////////////////////////////////////
 
+void writetofile_b(const VectorDouble& A, std::string path);
+void writetofile_b(const MatrixDouble& A, std::string path);
 void writetofile(const MatrixDouble& A, std::string path);
 void writetofile(const VectorDouble& x, std::string path);
 void writetofile(const std::vector<double>& x, std::string path);
@@ -44,12 +47,15 @@ double mtDm(const VectorDouble& m, const MatrixDouble& D);
 double mtDm(const std::vector<double>& m, const MatrixDouble& D);
 double mtAm(const VectorDouble& m, const MatrixDouble& A);
 double mtAm(const std::vector<double>& m, const MatrixDouble& A);
+MatrixDouble mmt(const VectorDouble&);
+VectorDouble& operator*=(VectorDouble& a, const double& s);
+VectorDouble& operator+=(VectorDouble& a, const double& s);
 
 MatrixDouble submatrix(const MatrixDouble& X, const TNT::Subscript i0, const TNT::Subscript i1, const TNT::Subscript j0, const TNT::Subscript j1);
 MatrixDouble pseudoinverse(const MatrixDouble& X);
 MatrixDouble pseudoinverse_od(const MatrixDouble& X);
 MatrixDouble lower_cholesky(const MatrixDouble& A);
-MatrixDouble identitymatrix(size_t n);
+MatrixDouble identitymatrix(TNT::Subscript n);
 MatrixDouble inverse(const MatrixDouble& A);
 void print(const MatrixDouble& A, const std::string& name="");
 

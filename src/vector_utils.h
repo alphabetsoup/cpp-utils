@@ -10,10 +10,10 @@ Author: Ross C. Brodie, Geoscience Australia.
 #define _vector_utils_H
 
 #include <cmath>
+#include <algorithm>
 #include <numeric>
 #include <vector>
-#include <algorithm>
-#include <iterator>
+#include <cassert>
 
 //Vector scalar unary op
 template<typename T, typename S> std::vector<T>& operator+=(std::vector<T>& a,  const S& s)
@@ -142,17 +142,6 @@ template<typename T> std::vector<T> operator/(const std::vector<T>& a, const std
 
 
 //Functions
-template<typename T> void pow10_apply(std::vector<T>& v)
-{
-	std::for_each(v.begin(), v.end(), [](T& item){ item = std::pow(10.0, item); });
-};
-
-template<typename T> std::vector<T> pow10(const std::vector<T>& v)
-{
-	std::vector<T> a = v;
-	pow10_apply(a); return a;
-};
-
 template<typename T> void log10_apply(std::vector<T>& v)
 {
 	std::for_each(v.begin(), v.end(), [](T& item){ item = std::log10(item); });
@@ -162,6 +151,28 @@ template<typename T> std::vector<T> log10(const std::vector<T>& v)
 {
 	std::vector<T> a = v;
 	log10_apply(a); return a;
+};
+
+template<typename T> void logn_apply(std::vector<T>& v)
+{
+	std::for_each(v.begin(), v.end(), [](T& item){ item = std::log(item); });
+};
+
+template<typename T> std::vector<T> logn(const std::vector<T>& v)
+{
+	std::vector<T> a = v;
+	logn_apply(a); return a;
+};
+
+template<typename T> void exp_apply(std::vector<T>& v)
+{
+	std::for_each(v.begin(), v.end(), [](T& item){ item = std::exp(item); });
+};
+
+template<typename T> std::vector<T> exp(const std::vector<T>& v)
+{
+	std::vector<T> a = v;
+	exp_apply(a); return a;
 };
 
 template<typename T> T min(const std::vector<T>& v)
@@ -176,8 +187,20 @@ template<typename T> T max(const std::vector<T>& v)
 
 template<typename T> T sum(const std::vector<T>& v)
 {
-	T init = 0;
-	return std::accumulate(v.cbegin(), v.cend(), init);
+	return std::accumulate(v.cbegin(), v.cend(), 0.0);
+};
+
+template<typename T> T dot(const std::vector<T>& u, const std::vector<T>& v)
+{
+	return std::inner_product(u.cbegin(), u.cend(), v.cbegin(), 0.0);
+};
+
+template<typename T> std::vector<T> sqrt(const std::vector<T>& v)
+{
+	std::vector<T> o(v.size());
+	for (size_t i=0; i<v.size(); ++i) o[i]=sqrt(v[i]);
+	//std::transform(v.cbegin(), v.cend(), o.cbegin(), (double(*)(double)) sqrt);
+	return o;
 };
 
 template<typename T> T mean(const std::vector<T>& v)
@@ -197,6 +220,14 @@ template<typename T> T stddev(const std::vector<T>& v)
 {
 	return sqrt(variance(v));
 };
+
+template<typename T> T fabs(const std::vector<T>& v)
+{
+	std::vector<T> a = v;
+	std::for_each(a.begin(), a.end(), [](T& item){ item = std::fabs(item); });
+	return a;
+};
+
 
 template<typename T>
 void append(std::vector<T>& a, const std::vector<T>& b){	
@@ -271,6 +302,16 @@ template<typename T> T stddev(const size_t n, const T* v)
 	return sum / n;
 };
 
+template<typename ForwardIterator, typename T>
+void arange(ForwardIterator first, ForwardIterator last, T begin, T end)
+{
+	size_t d = std::distance(first,last);
+	if (d==0) return;
+	T inc = (end - begin) / (d-1);
+	size_t i = 0;
+	while (first != last) *first++ = begin + inc * i++;
+}
+
 template<typename T>
 std::vector<T> increment(const size_t n, const T start = 0, const T inc = 1)
 {
@@ -279,6 +320,152 @@ std::vector<T> increment(const size_t n, const T start = 0, const T inc = 1)
 	for (size_t i = 1; i<n; i++) v[i] = v[i - 1] + inc;
 	return v;
 };
+
+template<typename T>
+std::vector<T> cumsum(std::vector<T> a)
+{
+	std::vector<T> cs(a.size());
+	std::partial_sum(a.begin(), a.end(), cs.begin(), std::plus<T>());
+	return cs;
+}
+
+template<typename T>
+std::vector<std::vector<T>> matinv(std::vector<std::vector<T>>& mat){
+	size_t n = mat.size(); 
+	size_t i, j;
+	std::vector<std::vector<T>> inv(n, std::vector<T>(n, 0));
+	T determinant = 0;
+	for(i = 0; i < n; i++)
+		determinant = determinant + (mat[0][i] * (mat[1][(i+1)%3] * mat[2][(i+2)%3] - mat[1][(i+2)%3] * mat[2][(i+1)%3]));
+	for(i = 0; i < n; i++)
+		for(j = 0; j < n; j++)
+			inv[i][j] = ((mat[(j+1)%n][(i+1)%n] * mat[(j+2)%n][(i+2)%n]) - (mat[(j+1)%n][(i+2)%n] * mat[(j+2)%n][(i+1)%n]))/ determinant;
+	return inv;
+}
+template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
+
+template<typename T>
+T logdet(const std::vector<std::vector<T>>& a_const, T& sign) {
+	size_t n = a_const.size();
+	/*
+	std::vector<std::vector<T>> l(n,std::vector<T>(n,0));
+	std::vector<std::vector<T>> u(n,std::vector<T>(n,0));
+	size_t i,k,j,p;
+	*/
+	//********** LU decomposition *****//
+	/*
+	for(k=0;k<n;k++)
+	{
+		u[k][k]=1;
+		for(i=k;i<n;i++)
+		{
+			sum=0;
+			for(p=0;p<k-1;p++)
+				sum+=l[i][p]*u[p][k];
+			l[i][k]=a[i][k]-sum;
+		}
+
+		for(j=k+1;j<n;j++)
+		{
+			sum=0;
+			for(p=0;p<k-1;p++)
+				sum+=l[k][p]*u[p][j];
+			u[k][j]=(a[k][j]-sum)/l[k][k];
+		}
+	}
+	*//*
+	for (i = 0; i < n; i++)
+	{
+		for (j = 0; j < n; j++)
+		{
+			if (j < i)
+				l[j][i] = 0;
+			else
+			{
+				l[j][i] = a[j][i];
+				for (k = 0; k < i; k++)
+				{
+					l[j][i] = l[j][i] - l[j][k] * u[k][i];
+				}
+			}
+		}
+		for (j = 0; j < n; j++)
+		{
+			if (j < i)
+				u[i][j] = 0;
+			else if (j == i)
+				u[i][j] = 1;
+			else
+			{
+				u[i][j] = a[i][j] / l[i][i];
+				for (k = 0; k < i; k++)
+				{
+					u[i][j] = u[i][j] - ((l[i][k] * u[k][j]) / l[i][i]);
+				}
+			}
+		}
+	}
+	*/
+	std::vector<std::vector<T>> a = a_const; // I hope this copy is deep.
+	const T TINY=1.0e-20;
+	int i,imax,j,k;
+	T big,dum,sum,temp;
+
+	std::vector<T> vv(n,0);
+	std::vector<int> indx(n,0); // for logdet we cat remove indx and d
+	T d=1.0;
+	for (i=0;i<n;i++) {
+		big=0.0;
+		for (j=0;j<n;j++)
+			if ((temp=fabs(a[i][j])) > big) big=temp;
+		if (big == 0.0) return std::numeric_limits<double>::infinity();//"Singular matrix in routine ludcmp");
+		vv[i]=1.0/big;
+	}
+	for (j=0;j<n;j++) {
+		for (i=0;i<j;i++) {
+			sum=a[i][j];
+			for (k=0;k<i;k++) sum -= a[i][k]*a[k][j];
+			a[i][j]=sum;
+		}
+		big=0.0;
+		for (i=j;i<n;i++) {
+			sum=a[i][j];
+			for (k=0;k<j;k++) sum -= a[i][k]*a[k][j];
+			a[i][j]=sum;
+			if ((dum=vv[i]*fabs(sum)) >= big) {
+				big=dum;
+				imax=i;
+			}
+		}
+		if (j != imax) {
+			for (k=0;k<n;k++) {
+				dum=a[imax][k];
+				a[imax][k]=a[j][k];
+				a[j][k]=dum;
+			}
+			d = -d;
+			vv[imax]=vv[j];
+		}
+		indx[j]=imax;
+		if (a[j][j] == 0.0) a[j][j]=TINY;
+		if (j != n-1) {
+			dum=1.0/(a[j][j]);
+			for (i=j+1;i<n;i++) a[i][j] *= dum;
+		}
+	}
+
+	// sum logs of diagonals
+	T ld = 0;
+	sign = 1;
+	//for(k=0;k<n;k++) ld += std::log(u[k][k]) + std::log(l[k][k]);
+	for(k=0;k<n;k++) {
+		ld += std::log(std::fabs(a[k][k])); // log of 1 is zero
+		sign *= sgn(a[k][k]);
+	}
+	return ld;
+}
 
 #endif
 
