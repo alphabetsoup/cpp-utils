@@ -14,6 +14,7 @@ Author: Ross C. Brodie, Geoscience Australia.
 
 #include "general_constants.h"
 #include "matrix_ops.h"
+#include "vector_utils.h"
 #include "random.h"
 
 void seedrand()
